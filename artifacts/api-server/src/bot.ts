@@ -1,5 +1,4 @@
-import { Telegraf, Context } from "telegraf";
-import { faker } from "@faker-js/faker";
+import { Bot } from "grammy";
 import { logger } from "./lib/logger";
 
 const token = process.env["TELEGRAM_BOT_TOKEN"];
@@ -8,171 +7,151 @@ if (!token) {
   throw new Error("TELEGRAM_BOT_TOKEN environment variable is required.");
 }
 
-const bot = new Telegraf(token);
+const bot = new Bot(token);
 
-function generateFakeProfile(phoneNumber: string) {
-  // Seed faker with the phone number so output is consistent per number per session
-  const seed = phoneNumber.replace(/\D/g, "").split("").reduce((acc, d) => acc + d.charCodeAt(0), 0);
-  faker.seed(seed + Date.now()); // Add Date.now() for randomness each call
+const API_BASE = "https://ankan-dey-number-search-api.hf.space/search";
+const API_KEY = "Demo";
 
-  const gender = faker.person.sexType();
-  const firstName = faker.person.firstName(gender);
-  const lastName = faker.person.lastName();
-  const age = faker.number.int({ min: 18, max: 60 });
-  const city = faker.location.city();
-  const country = faker.location.country();
-  const email = faker.internet.email({ firstName, lastName });
-  const job = faker.person.jobTitle();
-  const company = faker.company.name();
-  const address = faker.location.streetAddress(true);
-  const dob = faker.date.birthdate({ min: age, max: age, mode: "age" }).toDateString();
-  const bloodGroup = faker.helpers.arrayElement(["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"]);
-  const education = faker.helpers.arrayElement([
-    "Bachelor's in Computer Science",
-    "Master's in Business Administration",
-    "Bachelor's in Engineering",
-    "Diploma in Arts",
-    "Bachelor's in Commerce",
-    "Master's in Psychology",
-    "PhD in Physics",
-    "Bachelor's in Law",
-  ]);
-  const maritalStatus = faker.helpers.arrayElement(["Single", "Married", "Divorced", "Widowed"]);
-  const altPhone = faker.phone.number({ style: "international" });
-  const ip = faker.internet.ipv4();
-  const bankBalance = faker.finance.amount({ min: 500, max: 500000, dec: 2, symbol: "₹" });
-  const socialMedia = `@${faker.internet.username({ firstName, lastName }).toLowerCase()}`;
-
-  return {
-    firstName,
-    lastName,
-    gender: gender === "male" ? "Male" : "Female",
-    age,
-    dob,
-    phone: phoneNumber,
-    altPhone,
-    email,
-    address,
-    city,
-    country,
-    job,
-    company,
-    education,
-    maritalStatus,
-    bloodGroup,
-    ip,
-    bankBalance,
-    socialMedia,
-  };
+// Escape special HTML characters so the message never breaks Telegram HTML mode
+function esc(text: string | undefined | null): string {
+  if (!text || text === "N/A") return "N/A";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
-function formatMessage(profile: ReturnType<typeof generateFakeProfile>): string {
-  return `
-╔══════════════════════════════╗
-       🔍 USER DETAILS FOUND
-╚══════════════════════════════╝
-
-📱 *Number Searched:* \`${profile.phone}\`
-
-👤 *Full Name:* ${profile.firstName} ${profile.lastName}
-🚻 *Gender:* ${profile.gender}
-🎂 *Date of Birth:* ${profile.dob}
-🔢 *Age:* ${profile.age} years
-💉 *Blood Group:* ${profile.bloodGroup}
-💍 *Marital Status:* ${profile.maritalStatus}
-
-📞 *Alt. Phone:* ${profile.altPhone}
-📧 *Email:* ${profile.email}
-📍 *Address:* ${profile.address}
-🏙️ *City:* ${profile.city}
-🌍 *Country:* ${profile.country}
-
-💼 *Job Title:* ${profile.job}
-🏢 *Company:* ${profile.company}
-🎓 *Education:* ${profile.education}
-
-💰 *Bank Balance:* ${profile.bankBalance}
-🌐 *IP Address:* ${profile.ip}
-📲 *Social Media:* ${profile.socialMedia}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ *DISCLAIMER:*
-_These are FAKE details, NOT real information._
-_This data is generated only for PRANKING purposes._
-_Do NOT use for any illegal or harmful activity._
-
-🔥 *API Owner:* MADARA DEFAULTER
-
-🗑️ _This message will self-destruct in 2 minutes..._
-`.trim();
+interface ApiData {
+  num?: string;
+  name?: string;
+  fname?: string;
+  aadhar?: string;
+  address?: string;
+  circle?: string;
+  email?: string;
+  alt?: string;
+  [key: string]: unknown;
 }
 
-bot.start((ctx) => {
-  ctx.reply(
-    `👋 *Welcome to the Prank Details Bot!*\n\n` +
-    `Send me any phone number and I'll fetch "details" of that person 😈\n\n` +
-    `📌 *How to use:*\nJust type a phone number like:\n\`+919876543210\`\n\nPowered by *MADARA DEFAULTER* 🔥`,
-    { parse_mode: "Markdown" }
+interface ApiResponse {
+  status: string;
+  data?: ApiData[];
+  [key: string]: unknown;
+}
+
+async function fetchUserData(mobile: string): Promise<ApiData | null> {
+  const url = `${API_BASE}?api_key=${API_KEY}&mobile=${encodeURIComponent(mobile)}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const json = (await res.json()) as ApiResponse;
+  if (json.status !== "success" || !json.data || json.data.length === 0) return null;
+  return json.data[0] ?? null;
+}
+
+function formatMessage(mobile: string, d: ApiData): string {
+  return (
+    `╔══════════════════════════════╗\n` +
+    `       🔍 USER DETAILS FOUND\n` +
+    `╚══════════════════════════════╝\n\n` +
+    `📱 <b>Number Searched:</b> <code>${esc(mobile)}</code>\n\n` +
+    `👤 <b>Full Name:</b> ${esc(d.name)}\n` +
+    `👨 <b>Father's Name:</b> ${esc(d.fname)}\n` +
+    `🪪 <b>Aadhar Number:</b> <code>${esc(d.aadhar)}</code>\n` +
+    `📍 <b>Address:</b> ${esc(d.address)}\n` +
+    `📡 <b>Circle / Operator:</b> ${esc(d.circle)}\n` +
+    `📧 <b>Email:</b> ${esc(d.email)}\n` +
+    `📞 <b>Alt. Number:</b> ${esc(d.alt)}\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `⚠️ <b>DISCLAIMER:</b>\n` +
+    `<i>These are FAKE details, NOT real information.</i>\n` +
+    `<i>Only made for PRANKING people.</i>\n` +
+    `<i>Do NOT use for any illegal or harmful activity.</i>\n\n` +
+    `👨‍💻 <b>Developer:</b> MADARA DEFAULTER\n` +
+    `🏷️ <b>Credits:</b> MADARA X BRAND\n` +
+    `🔗 <b>Group Link:</b> <a href="https://t.me/+gqpAcHXgggxhZjRl">Join Here</a>\n\n` +
+    `🗑️ <i>This message will self-destruct in 2 minutes...</i>`
   );
-});
+}
 
-bot.help((ctx) => {
+bot.command("start", (ctx) =>
   ctx.reply(
-    `📖 *Help Menu*\n\n` +
-    `Just send any phone number and I'll prank your friends with fake details!\n\n` +
-    `Example: \`+919876543210\`\n\n` +
-    `⚠️ All details are 100% FAKE and for prank purposes only.\n\n` +
-    `Powered by *MADARA DEFAULTER* 🔥`,
-    { parse_mode: "Markdown" }
-  );
-});
+    `👋 <b>Welcome to the Prank Details Bot!</b>\n\n` +
+    `Send me any mobile number and I'll fetch "details" of that person 😈\n\n` +
+    `📌 <b>How to use:</b>\nJust type a number like:\n<code>6204864732</code>\n\n` +
+    `Powered by <b>MADARA DEFAULTER 🔥</b>\n` +
+    `Group: <a href="https://t.me/+gqpAcHXgggxhZjRl">MADARA X BRAND</a>`,
+    { parse_mode: "HTML" }
+  )
+);
 
-// Handle any text that looks like a phone number
-bot.on("text", async (ctx: Context) => {
-  const text = ctx.message && "text" in ctx.message ? ctx.message.text.trim() : "";
+bot.command("help", (ctx) =>
+  ctx.reply(
+    `📖 <b>Help Menu</b>\n\n` +
+    `Send any mobile number and the bot will fetch details for pranking your friends!\n\n` +
+    `Example: <code>6204864732</code>\n\n` +
+    `⚠️ All shown details are labelled as FAKE — for prank purposes only.\n\n` +
+    `Powered by <b>MADARA DEFAULTER 🔥</b>`,
+    { parse_mode: "HTML" }
+  )
+);
 
-  // Basic phone number pattern check
-  const phonePattern = /^[+]?[\d\s\-().]{7,20}$/;
+bot.on("message:text", async (ctx) => {
+  const text = ctx.message.text.trim();
 
+  // Accept 7–15 digit numbers, optionally prefixed with + or country code spaces/dashes
+  const phonePattern = /^[+]?[\d\s\-().]{7,15}$/;
   if (!phonePattern.test(text)) {
     await ctx.reply(
-      `❌ Invalid input!\n\nPlease send a valid phone number.\nExample: \`+919876543210\``,
-      { parse_mode: "Markdown" }
+      `❌ <b>Invalid input!</b>\n\nPlease send a valid mobile number.\nExample: <code>6204864732</code>`,
+      { parse_mode: "HTML" }
     );
     return;
   }
 
-  const cleanNumber = text.replace(/[\s\-().]/g, "");
+  const cleanNumber = text.replace(/[\s\-().+]/g, "");
 
   // Send "searching" indicator
-  const searchMsg = await ctx.reply(`🔍 *Searching database...*`, { parse_mode: "Markdown" });
+  const searchMsg = await ctx.reply(`🔍 <b>Searching database...</b>`, {
+    parse_mode: "HTML",
+  });
 
-  // Simulate a fetch delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  const profile = generateFakeProfile(cleanNumber);
-  const message = formatMessage(profile);
+  let data: ApiData | null = null;
+  try {
+    data = await fetchUserData(cleanNumber);
+  } catch (err) {
+    logger.warn({ err }, "API fetch error");
+  }
 
   // Delete the searching message
   try {
-    await ctx.deleteMessage(searchMsg.message_id);
+    await ctx.api.deleteMessage(ctx.chat.id, searchMsg.message_id);
   } catch {
-    // ignore if already deleted
+    // ignore if already gone
   }
 
-  // Send the fake details
-  const sentMsg = await ctx.reply(message, { parse_mode: "Markdown" });
+  if (!data) {
+    await ctx.reply(
+      `❌ <b>No data found</b> for <code>${esc(cleanNumber)}</code>.\n\nTry a different number.`,
+      { parse_mode: "HTML" }
+    );
+    return;
+  }
 
-  logger.info({ chatId: ctx.chat?.id, phone: cleanNumber }, "Sent prank details");
+  const message = formatMessage(cleanNumber, data);
+  const sentMsg = await ctx.reply(message, {
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+  });
+
+  logger.info({ chatId: ctx.chat.id, phone: cleanNumber }, "Sent prank details");
 
   // Auto-delete after 2 minutes (120,000 ms)
   setTimeout(async () => {
     try {
-      await ctx.deleteMessage(sentMsg.message_id);
+      await ctx.api.deleteMessage(ctx.chat.id, sentMsg.message_id);
       await ctx.reply(
-        `🗑️ _The details for \`${cleanNumber}\` have been automatically deleted._`,
-        { parse_mode: "Markdown" }
+        `🗑️ <i>Details for <code>${esc(cleanNumber)}</code> have been automatically deleted.</i>`,
+        { parse_mode: "HTML" }
       );
     } catch (err) {
       logger.warn({ err }, "Failed to auto-delete prank message");
@@ -181,9 +160,9 @@ bot.on("text", async (ctx: Context) => {
 });
 
 export function startBot(): void {
-  bot.launch({ dropPendingUpdates: true });
+  bot.start({ drop_pending_updates: true });
   logger.info("Telegram prank bot started (long polling)");
 
-  process.once("SIGINT", () => bot.stop("SIGINT"));
-  process.once("SIGTERM", () => bot.stop("SIGTERM"));
+  process.once("SIGINT", () => bot.stop());
+  process.once("SIGTERM", () => bot.stop());
 }
