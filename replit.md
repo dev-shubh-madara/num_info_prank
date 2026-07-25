@@ -1,6 +1,6 @@
-# [Project name]
+# Prank Details Bot
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A Telegram bot that takes a phone number and returns randomly generated fake user details for pranking friends. All data is clearly labelled as fake. Messages auto-delete after 2 minutes.
 
 ## Run & Operate
 
