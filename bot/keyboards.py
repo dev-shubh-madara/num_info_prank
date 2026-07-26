@@ -23,7 +23,8 @@ def kb_main() -> InlineKeyboardMarkup:
             InlineKeyboardButton("🔍 Search Number",   callback_data="search",       style=ButtonStyle.SUCCESS),
         ],
         [
-            InlineKeyboardButton("🛡️ Protect Number",  callback_data="protect_info", style=ButtonStyle.DANGER),
+            InlineKeyboardButton("🛡️ Protect Number",   callback_data="protect_info", style=ButtonStyle.DANGER),
+            InlineKeyboardButton("🔥 Unlimited Search", callback_data="unlimited",    style=ButtonStyle.SUCCESS),
         ],
     ])
 

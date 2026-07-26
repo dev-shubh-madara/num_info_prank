@@ -160,6 +160,24 @@ def txt_result(mobile: str, d: dict) -> str:
     )
 
 
+def txt_unlimited_info() -> str:
+    return bq(
+        f"🔥 <b>Unlimited Searches — FREE!</b>\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"Want <b>unlimited</b> number searches at no cost?\n\n"
+        f"📌 <b>How it works:</b>\n"
+        f"1️⃣ Join our official group below\n"
+        f"2️⃣ Inside the group, use the command:\n"
+        f"   <code>/num &lt;number&gt;</code>\n"
+        f"   Example: <code>/num 9988776655</code>\n\n"
+        f"✅ Group members get <b>unlimited</b> searches\n"
+        f"with no daily cap — completely free!\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👨‍💻 <b>Developer:</b> MADARA DEFAULTER\n"
+        f"🏷️ <b>Brand:</b> MADARA X BRAND"
+    )
+
+
 def txt_protected_block(mobile: str) -> str:
     return bq(
         f"🛡️ <b>Number Protected</b>\n\n"

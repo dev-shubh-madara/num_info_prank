@@ -10,10 +10,20 @@ from database import upsert_user, referral_count
 from helpers import member_check
 from templates import (
     txt_start, txt_not_joined, txt_referral, txt_credits,
-    txt_network, txt_developer, txt_protect_info,
+    txt_network, txt_developer, txt_protect_info, txt_unlimited_info,
     txt_awaiting_number, txt_limit_reached,
 )
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.enums import ButtonStyle
+from config import GROUP_LINK
 from keyboards import kb_main, kb_join, kb_back, kb_cancel, kb_refer_home
+
+
+def kb_unlimited() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("👥 Join Group — Unlimited", url=GROUP_LINK, style=ButtonStyle.SUCCESS)],
+        [InlineKeyboardButton("🏠 Back to Home", callback_data="home", style=ButtonStyle.PRIMARY)],
+    ])
 from database import has_searches, remaining
 
 
@@ -100,6 +110,17 @@ async def cb_protect_info(client, cb):
     await cb.message.edit_text(
         txt_protect_info(),
         reply_markup=kb_back(),
+        parse_mode=ParseMode.HTML,
+        disable_web_page_preview=True,
+    )
+    await cb.answer()
+
+
+@app.on_callback_query(filters.regex("^unlimited$"))
+async def cb_unlimited(client, cb):
+    await cb.message.edit_text(
+        txt_unlimited_info(),
+        reply_markup=kb_unlimited(),
         parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
     )
