@@ -21,7 +21,7 @@ log = logging.getLogger("MadaraBot")
 
 
 @app.on_message(
-    filters.private & filters.text & ~filters.command(["start", "help", "protect", "unprotect", "protectedlist"])
+    filters.private & filters.text & ~filters.command(["start", "help", "protect", "unprotect", "protectedlist", "ping"])
 )
 async def handle_text(client, msg):
     u = msg.from_user

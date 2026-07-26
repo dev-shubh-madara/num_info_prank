@@ -1,7 +1,8 @@
 """
 Handler: /start command
-Handles referral tracking and force-join gate.
+Handles referral tracking, force-join gate, and sends start banner photo.
 """
+import os
 from pyrogram import filters
 from pyrogram.enums import ParseMode
 
@@ -10,6 +11,8 @@ from database import upsert_user, credit_referrer
 from helpers import member_check, bq
 from templates import txt_start, txt_not_joined
 from keyboards import kb_main, kb_join
+
+START_BANNER = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "start_banner.jpg")
 
 
 @app.on_message(filters.command("start") & filters.private)
@@ -48,15 +51,20 @@ async def cmd_start(client, msg):
 
     # ── Force-join gate ───────────────────────────────────────────────────
     if not await member_check(client, user.id):
-        await msg.reply(
-            txt_not_joined(),
-            reply_markup=kb_join(),
+        await client.send_photo(
+            chat_id=msg.chat.id,
+            photo=START_BANNER,
+            caption=txt_not_joined(),
             parse_mode=ParseMode.HTML,
+            reply_markup=kb_join(),
         )
         return
 
-    await msg.reply(
-        txt_start(user.first_name or "User"),
-        reply_markup=kb_main(),
+    # ── Welcome with banner ───────────────────────────────────────────────
+    await client.send_photo(
+        chat_id=msg.chat.id,
+        photo=START_BANNER,
+        caption=txt_start(user.first_name or "User"),
         parse_mode=ParseMode.HTML,
+        reply_markup=kb_main(),
     )
